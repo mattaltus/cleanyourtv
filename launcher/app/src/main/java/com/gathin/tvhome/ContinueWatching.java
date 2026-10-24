@@ -250,7 +250,6 @@ final class ContinueWatching {
                 card = v.findViewById(R.id.continueCard);
                 poster = v.findViewById(R.id.continuePoster);
                 badge = v.findViewById(R.id.continueBadge);
-                badge.setClipToOutline(true);
                 title = v.findViewById(R.id.continueTitle);
                 track = v.findViewById(R.id.continueTrack);
                 progress = v.findViewById(R.id.continueProgress);
