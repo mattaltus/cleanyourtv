@@ -184,7 +184,7 @@
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/continueList"
             android:layout_width="match_parent"
-            android:layout_height="136dp"
+            android:layout_height="133dp"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
             android:paddingTop="12dp"

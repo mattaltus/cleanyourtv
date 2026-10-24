@@ -2250,7 +2250,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
         continueRow.forceHasOverlappingRendering(false);
         continueList.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         continueList.setItemAnimator(null);
-        posters = new Posters(getContentResolver(), (int) (200 * density), (int) (112 * density));
+        posters = new Posters(getContentResolver(), (int) (194 * density), (int) (109 * density));
         continueAdapter = new ContinueWatching.Adapter(this, posters, this, animations && !reducedMotion);
         continueList.setAdapter(continueAdapter);
     }
