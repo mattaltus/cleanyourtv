@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Speaker LEDs</string>
+    <string name="state_on">The speaker LEDs are on while the TV is on, with the pattern “%1$s”.</string>
+    <string name="state_off">The speaker LEDs are off.</string>
+    <string name="screen">%1$s\n\nOK: switch on or off. Left/Right: pattern. Back: close.</string>
+    <string name="unsupported">This TV has no assistant LED service (com.google.android.tv.assistant), or it is disabled.</string>
+    <string name="channel">Speaker LEDs</string>
+    <string name="notification">Keeping the speaker LEDs on</string>
+</resources>

@@ -1,0 +1,37 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:name="android.software.leanback" android:required="true" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <!-- Start again after a reboot, and keep the binding to the LED service while the TV is on. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <queries>
+        <package android:name="com.google.android.tv.assistant" />
+    </queries>
+
+    <application android:allowBackup="false" android:supportsRtl="true" android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
+        android:label="@string/app_name" android:icon="@drawable/icon" android:banner="@drawable/icon">
+        <activity android:name=".LedActivity" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LEANBACK_LAUNCHER" /></intent-filter>
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="com.gathin.tvhome.category.DOCK_CARD" /></intent-filter>
+            <meta-data android:name="com.gathin.tvhome.card" android:resource="@xml/module_card" />
+        </activity>
+
+        <service android:name=".LedHoldService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Holds the TV speaker's indicator LEDs on while the screen is on" />
+        </service>
+
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <!-- TCL firmware's wake from standby; delivered to background apps -->
+                <action android:name="tcl.sys.intent.action.STR_RESUME_COMPLETED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

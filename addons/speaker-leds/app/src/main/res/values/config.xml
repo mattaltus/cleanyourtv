@@ -1,0 +1,7 @@
+<resources>
+    <!-- The LED pattern held while the TV is on, until the owner picks another on the card screen (Left/Right)
+         or over ADB, by starting io.github.mattaltus.speakerleds/.LedActivity with the string extra "pattern" (see README).
+         One of: listening, thinking, responding, timeout, mute, error. On a TCL 43C725 "mute" is a steady
+         light that matches the stock look; "listening" is a steady light too. -->
+    <string name="led_pattern" translatable="false">mute</string>
+</resources>
