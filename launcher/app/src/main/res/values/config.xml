@@ -223,6 +223,7 @@
          to omit. -->
     <string-array name="app_keys" translatable="false">
         <item>KEYCODE_TCL_NETFLIX:com.netflix.ninja</item>
+        <item>KEYCODE_TCL_YOUTUBE:com.google.android.youtube.tv</item>
         <item>4099:com.amazon.amazonvideo.livingroom</item>
     </string-array>
 
