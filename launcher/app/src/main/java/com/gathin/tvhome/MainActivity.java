@@ -8,6 +8,7 @@ import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.IntentFilter;
@@ -75,6 +76,7 @@ import androidx.dynamicanimation.animation.FloatPropertyCompat;
 import androidx.dynamicanimation.animation.SpringAnimation;
 import androidx.dynamicanimation.animation.SpringForce;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
@@ -86,6 +88,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -94,7 +97,7 @@ import java.util.Set;
 /**
  * tvOS style home: black, a pinned dock row, an app grid, and one glass highlight that springs between tiles.
  */
-public class MainActivity extends Activity implements AppAdapter.TileListener {
+public class MainActivity extends Activity implements AppAdapter.TileListener, ContinueWatching.Listener {
     @Override
     protected void attachBaseContext(android.content.Context base) {
         super.attachBaseContext(LauncherLocale.wrap(base));   // locale
@@ -178,6 +181,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** config.xml glow_snap: the glow takes a new colour in one frame instead of the dip-and-fade. */
     private boolean glowSnap;
     private boolean heroShown;
+    // Local (living room): the Continue watching row above the top shelf (ContinueWatching).
+    private View continueRow;
+    private RecyclerView continueList;
+    private ContinueWatching.Adapter continueAdapter;
+    private Posters posters;
+    private boolean continueShown;
+    private int continueFocus;
+    private float lastHeroY = Float.NaN;
     private boolean animations;
     private boolean advancedEffects;
     private TextView greeting;
@@ -533,6 +544,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // dock_title false: the name above the dock (and the cinematic lines under it) never shows; the glow
         // still follows the dock.
         if (!cfg.dockTitle) hero.setVisibility(View.GONE);
+        setUpContinueWatching();
         greeting = findViewById(R.id.greeting);
         clockBlock = findViewById(R.id.leftBlock);
         greetingColor = greeting.getCurrentTextColor();
@@ -893,8 +905,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                // Back to the dock tile Up came from, not wherever the focus finder lands.
-                focusTile(singleRow ? lastFocused : lastFocused % COLUMNS);
+                // Back to the dock tile Up came from, not wherever the focus finder lands; through Continue
+                // watching first when it shows (local).
+                if (!focusContinue()) focusTile(singleRow ? lastFocused : lastFocused % COLUMNS);
                 return true;
             }
             int firstButton = btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : firstTopButton().getId();
@@ -1112,6 +1125,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // Back from an app opened from its tile, focus is still on that tile, so the cinematic "Last opened" line kept
         // the time from before this launch ("2 days ago" right after opening it). Refresh it.
         if (cinematic && heroMeta != null && lastFocused >= 0 && lastFocused < adapter.appCount()) updateHeroMeta(lastFocused);
+        refreshContinueWatching();
         // The network and Inputs pills keep their state while Home is in the background, and callbacks update them
         // when the network or the inputs change, so this refresh only catches anything missed. Its binder calls
         // (about 7 ms on a TCL C755, most of it WifiManager.getConnectionInfo) would hold up the first frame back
@@ -1369,6 +1383,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         RemoteKeys.release(this);
         cancelHoldOk();
         if (gameDay != null) gameDay.shutdown();
+        if (posters != null) posters.shutdown();
         unregisterReceiver(packageReceiver);
         if (openOnStartOnWake) unregisterReceiver(wakeReceiver);
         wallpaperPlayer.close();
@@ -1899,6 +1914,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         String label = adapter.labelAt(position);
         int color = adapter.ambientColorAt(position);
         float y = dockTopInRoot - 14 * density - 26 * density - hero.getHeight();
+        placeContinue(y);
         boolean changed = !label.contentEquals(heroName.getText());
         if (cinematic && heroArtAlpha > 0f) showHeroArt(position);
 
@@ -2176,6 +2192,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      * name above the dock does not show (every grid tile has its name underneath).
      */
     private void showGlowOnly(int position) {
+        hideContinue();
         int color = adapter.ambientColorAt(position);
         stopAmbientAnimation();
         hero.animate().cancel();
@@ -2207,6 +2224,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void hideHero() {
+        hideContinue();
         if (!heroShown) return;
         stopAmbientAnimation();
         hero.animate().cancel();
@@ -2222,6 +2240,105 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             ambient.setAlpha(0f);
             heroArt.setAlpha(0f);
         }
+    }
+
+    // ---- local (living room): Continue watching ---------------------------------------------------
+
+    private void setUpContinueWatching() {
+        continueRow = findViewById(R.id.continueRow);
+        continueList = findViewById(R.id.continueList);
+        continueRow.forceHasOverlappingRendering(false);
+        continueList.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        continueList.setItemAnimator(null);
+        posters = new Posters(getContentResolver(), (int) (176 * density), (int) (99 * density));
+        continueAdapter = new ContinueWatching.Adapter(this, posters, this, animations && !reducedMotion);
+        continueList.setAdapter(continueAdapter);
+    }
+
+    /** Reads the rows off the main thread each time Home comes back: apps update them while they play. */
+    private void refreshContinueWatching() {
+        ContentResolver resolver = getContentResolver();
+        new Thread(() -> {
+            List<ContinueWatching.Item> items = ContinueWatching.load(resolver);
+            runOnUiThread(() -> {
+                if (isDestroyed()) return;
+                continueAdapter.setItems(items);
+                if (items.isEmpty()) hideContinue();
+                else if (heroShown && !Float.isNaN(lastHeroY)) placeContinue(lastHeroY);
+            });
+        }, "continue-watching").start();
+    }
+
+    /** Above the top shelf, which sits above the focused dock app; shown while the row has something. */
+    private void placeContinue(float heroY) {
+        lastHeroY = heroY;
+        if (continueAdapter == null || continueAdapter.getItemCount() == 0) {
+            hideContinue();
+            return;
+        }
+        if (continueRow.getVisibility() != View.VISIBLE || continueRow.getHeight() == 0) {
+            continueRow.setVisibility(View.VISIBLE);
+            continueRow.post(() -> {
+                if (heroShown && continueRow.getHeight() > 0) placeContinue(lastHeroY);
+            });
+            return;
+        }
+        continueRow.setY(heroY - 20 * density - continueRow.getHeight());
+        if (continueShown) return;
+        continueShown = true;
+        continueRow.animate().cancel();
+        if (animations && !reducedMotion) continueRow.animate().alpha(1f).setDuration(260).start();
+        else continueRow.setAlpha(1f);
+    }
+
+    private void hideContinue() {
+        if (continueRow == null || !continueShown) return;
+        continueShown = false;
+        continueRow.animate().cancel();
+        if (animations && !reducedMotion) continueRow.animate().alpha(0f).setDuration(160).start();
+        else continueRow.setAlpha(0f);
+    }
+
+    /** Up from the dock: the card focused last, or the first one on screen; false while the row is hidden. */
+    private boolean focusContinue() {
+        if (!continueShown || continueAdapter.getItemCount() == 0) return false;
+        int pos = Math.min(continueFocus, continueAdapter.getItemCount() - 1);
+        RecyclerView.ViewHolder vh = continueList.findViewHolderForAdapterPosition(pos);
+        if (vh == null && continueList.getChildCount() > 0) vh = continueList.getChildViewHolder(continueList.getChildAt(0));
+        return vh != null && vh.itemView.findViewById(R.id.continueCard).requestFocus();
+    }
+
+    @Override public void onContinueFocused(int position) {
+        continueFocus = Math.max(0, position);
+        hideGlass();
+    }
+
+    @Override public void onContinueClick(ContinueWatching.Item item) {
+        try {
+            Intent i = Intent.parseUri(item.intentUri, Intent.URI_INTENT_SCHEME);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+            return;
+        } catch (URISyntaxException | RuntimeException e) {
+            // Not an intent this TV can start any more: open the app instead.
+        }
+        Intent launch = getPackageManager().getLeanbackLaunchIntentForPackage(item.pkg);
+        if (launch == null) launch = getPackageManager().getLaunchIntentForPackage(item.pkg);
+        if (launch == null) return;
+        try {
+            startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (RuntimeException ignored) {
+            // The app went away since the row was read.
+        }
+    }
+
+    @Override public boolean onContinueLeave(int keyCode) {
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            focusTile(lastFocused < COLUMNS ? lastFocused : 0);
+            return true;
+        }
+        View up = btnInputs.getVisibility() == View.VISIBLE ? btnInputs : firstTopButton();
+        return up.requestFocus();
     }
 
     private void hideGlass() {
@@ -2443,7 +2560,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            if (position < COLUMNS) return false;          // dock row: let focus move to the top bar
+            if (position < COLUMNS) return focusContinue();   // dock row: up into Continue watching, else the top bar
             target = position - COLUMNS;
         } else {
             int lastRowStart = ((count - 1) / COLUMNS) * COLUMNS;
