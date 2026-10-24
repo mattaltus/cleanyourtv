@@ -2258,8 +2258,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
     /** Reads the rows off the main thread each time Home comes back: apps update them while they play. */
     private void refreshContinueWatching() {
         ContentResolver resolver = getContentResolver();
+        String plexServer = getString(R.string.plex_server);
         new Thread(() -> {
-            List<ContinueWatching.Item> items = ContinueWatching.load(resolver);
+            List<ContinueWatching.Item> items = ContinueWatching.load(resolver, plexServer);
             runOnUiThread(() -> {
                 if (isDestroyed()) return;
                 continueAdapter.setItems(items);

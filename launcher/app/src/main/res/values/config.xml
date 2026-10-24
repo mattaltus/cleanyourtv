@@ -543,4 +543,8 @@
     <!-- Tiles drawn from the app's icon and name instead of its banner (for banners that crop badly). -->
     <string-array name="icon_tiles" translatable="false">
     </string-array>
+    <!-- Local (living room): the Plex server Continue watching asks for Plezy's thumbnails (Plezy serves its own art
+         from a private provider). The local address: this server trusts the local network, so no token is needed.
+         Empty: Plezy cards show Plezy's banner. -->
+    <string name="plex_server" translatable="false"></string>
 </resources>

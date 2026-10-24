@@ -21,6 +21,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Local (living room): the Continue watching row above the dock, from the rows other apps publish to the TV
@@ -54,7 +56,7 @@ final class ContinueWatching {
     }
 
     /** Every Watch Next row the launcher can read, best first; empty without the permission. Runs off the main thread. */
-    static List<Item> load(ContentResolver resolver) {
+    static List<Item> load(ContentResolver resolver, String plexServer) {
         List<Item> rows = new ArrayList<>();
         String[] columns = {
                 TvContract.WatchNextPrograms.COLUMN_PACKAGE_NAME,
@@ -76,13 +78,37 @@ final class ContinueWatching {
                 long position = c.isNull(9) ? 0 : c.getLong(9);
                 long duration = c.isNull(10) ? 0 : c.getLong(10);
                 rows.add(new Item(c.getString(0), title(c.getString(1), c.getString(2), c.getString(3), c.getString(4)),
-                        new String[]{c.getString(5), c.getString(6)}, c.getString(7), c.isNull(8) ? 0 : c.getLong(8),
+                        images(c.getString(0), c.getString(7), plexServer, c.getString(5), c.getString(6)), c.getString(7),
+                        c.isNull(8) ? 0 : c.getLong(8),
                         duration > 0 ? Math.min(1f, Math.max(0f, position / (float) duration)) : 0f));
             }
         } catch (RuntimeException e) {
             // SecurityException without READ_TV_LISTINGS, or a provider that is not there: no row.
         }
         return pick(rows);
+    }
+
+    private static final String PLEZY = "com.edde746.plezy";
+    private static final Pattern PLEZY_RATING_KEY = Pattern.compile("[?&]content_id=[^&;#]*_([0-9]+)(?:[&;#]|$)");
+
+    /**
+     * The images to try, in order. Plezy serves its art from a private provider other apps can't read, but its
+     * content_id ends in the Plex ratingKey: with plex_server set, ask the server for that item's thumbnail at card
+     * size first (a server that trusts the local network needs no token).
+     */
+    static String[] images(String pkg, String intentUri, String plexServer, String thumb, String poster) {
+        String key = PLEZY.equals(pkg) ? plexRatingKey(intentUri) : null;
+        if (key == null || plexServer == null || plexServer.isEmpty()) return new String[]{thumb, poster};
+        String plex = plexServer + "/photo/:/transcode?width=352&height=198&minSize=1&upscale=1"
+                + "&url=%2Flibrary%2Fmetadata%2F" + key + "%2Fthumb";
+        return new String[]{plex, thumb, poster};
+    }
+
+    /** "plezy://play?content_id=<id>_<server>_58068" → "58068"; null for anything else. */
+    static String plexRatingKey(String intentUri) {
+        if (intentUri == null) return null;
+        Matcher m = PLEZY_RATING_KEY.matcher(intentUri);
+        return m.find() ? m.group(1) : null;
     }
 
     /** "Show · S2 E5" for an episode, else the title. */

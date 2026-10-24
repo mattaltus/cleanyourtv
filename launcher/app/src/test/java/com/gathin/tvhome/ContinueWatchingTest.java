@@ -35,6 +35,22 @@ public class ContinueWatchingTest {
         assertEquals("Show 0", picked.get(1).title);
     }
 
+    @Test public void plezyRatingKey() {
+        assertEquals("58068", ContinueWatching.plexRatingKey("plezy://play?content_id=plexs_0123456789abcdef0123456789abcdef01234567_58068"));
+        assertEquals("43716", ContinueWatching.plexRatingKey("intent:#Intent;S.x=1;end?content_id=a_b_43716&t=2"));
+        assertEquals(null, ContinueWatching.plexRatingKey("plezy://play?content_id=nonumber"));
+        assertEquals(null, ContinueWatching.plexRatingKey(null));
+    }
+
+    @Test public void plezyImagesComeFromTheServerFirst() {
+        String[] images = ContinueWatching.images("com.edde746.plezy", "plezy://play?content_id=x_y_58068", "http://plex.local:32400", "content://t", null);
+        assertEquals(3, images.length);
+        assertEquals("http://plex.local:32400/photo/:/transcode?width=352&height=198&minSize=1&upscale=1&url=%2Flibrary%2Fmetadata%2F58068%2Fthumb", images[0]);
+        assertEquals("content://t", images[1]);
+        assertEquals(2, ContinueWatching.images("com.apple.atve.androidtv.appletv", "plezy://play?content_id=x_y_1", "http://s", "t", "p").length);
+        assertEquals(2, ContinueWatching.images("com.edde746.plezy", "plezy://play?content_id=x_y_1", "", "t", "p").length);
+    }
+
     @Test public void titles() {
         assertEquals("Severance · S2 E5", ContinueWatching.title("Severance", "Trojan's Horse", "2", "5"));
         assertEquals("Show · Pilot", ContinueWatching.title("Show", "Pilot", null, null));
