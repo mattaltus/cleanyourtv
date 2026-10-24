@@ -37,9 +37,12 @@ public class LedHoldService extends Service {
     private static final String KEY_PATTERN = "pattern";
     private static final String CHANNEL = "leds";
     // The LED service connects to its own worker asynchronously and drops calls until then, so after a connect
-    // or a wake the pattern is set after these delays. Only a few calls: the service's animation loop crashes
-    // when its pattern is switched in quick succession.
-    private static final long[] SHOW_MS = {1500, 5000};
+    // the calls wait. Its worker outlives a rebind and skips a state it thinks it already sent, so when the LEDs
+    // have gone dark (seen after a screensaver) the pattern alone doesn't relight them: a different pattern goes
+    // first, at NUDGE_MS, then the pattern at SHOW_MS. Only a few calls, seconds apart: the service's animation
+    // loop crashes when its pattern is switched in quick succession.
+    private static final long NUDGE_MS = 1500;
+    private static final long[] SHOW_MS = {3500, 6000};
     // Between letting go of the LED service (it shuts down with its last client) and binding it again.
     private static final long REBIND_MS = 700;
     // A wake sends both SCREEN_ON and TCL's STR_RESUME_COMPLETED: one restart covers both.
@@ -238,7 +241,12 @@ public class LedHoldService extends Service {
 
     private void showSoon() {
         handler.removeCallbacksAndMessages(null);
+        handler.postDelayed(this::nudge, NUDGE_MS);
         for (long ms : SHOW_MS) handler.postDelayed(this::show, ms);
+    }
+
+    private void nudge() {
+        if (getSystemService(PowerManager.class).isInteractive()) set(Patterns.getter(Patterns.nudge(pattern(this))));
     }
 
     private void show() {

@@ -27,4 +27,11 @@ public class PatternsTest {
         assertEquals("error", Patterns.step("listening", -1));
         assertEquals("thinking", Patterns.step("bogus", 1));
     }
+
+    @Test public void nudgeIsAlwaysADifferentPattern() {
+        for (String name : Patterns.NAMES) {
+            assertTrue(Patterns.isValid(Patterns.nudge(name)));
+            assertFalse(name.equals(Patterns.nudge(name)));
+        }
+    }
 }

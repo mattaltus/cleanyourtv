@@ -3,7 +3,7 @@ android {
     namespace 'io.github.mattaltus.speakerleds'
     compileSdk 34
     buildFeatures { aidl false; buildConfig false }
-    defaultConfig { applicationId 'io.github.mattaltus.speakerleds'; minSdk 26; targetSdk 34; versionCode 1; versionName '1.0' }
+    defaultConfig { applicationId 'io.github.mattaltus.speakerleds'; minSdk 26; targetSdk 34; versionCode 7; versionName '7' }
     buildTypes { release {
         minifyEnabled true
         shrinkResources true

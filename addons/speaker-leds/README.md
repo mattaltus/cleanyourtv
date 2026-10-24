@@ -18,6 +18,10 @@ asks for a pattern.
 - It starts at boot and after an update. Each time the TV wakes, or a screensaver ends, it lets go of the LED
   service (which then shuts down) and binds a fresh one: sending the pattern the service already holds does
   not relight the LEDs. The LEDs may go dark for about two seconds while that happens.
+- After each connect it sets a different steady pattern first (`listening`, or `mute` when `listening` is the
+  choice), then the chosen one 2 s later. After a screensaver the LEDs were dark while the LED service still
+  ran its animation, and restarts alone left them dark; a real change of pattern relit them. So each wake
+  shows the other pattern for about two seconds.
 - After a power cut the pattern set on the first connect is accepted but the LEDs stay dark. So after a boot
   it restarts the LED service twice more, 10 s and 60 s after it starts; the second one blinks the LEDs off for
   a moment if they were already on. The add-on itself can't start sooner: TCL holds third-party apps' boot
@@ -55,8 +59,8 @@ Build (JDK 17, Android SDK 34): `./gradlew testReleaseUnitTest lintRelease assem
   confirmed on a frozen add-on yet.
   Opening the card makes it a foreground service.
 - The LED service connects to its own worker asynchronously and drops calls until then, so after connecting
-  the pattern is set twice, 1.5 s and 5 s later. Each call is logged (`logcat -s SpeakerLeds`). Only twice: the service's animation loop
-  crashes (`LedAnimationLoop.setNextFrame`, NullPointerException) when its pattern is switched several times
+  the other pattern is set 1.5 s later and the chosen one at 3.5 s and 6 s. Each call is logged
+  (`logcat -s SpeakerLeds`). Only these three, seconds apart: the service's animation loop crashes (`LedAnimationLoop.setNextFrame`, NullPointerException) when its pattern is switched several times
   in quick succession.
 
 **Known limit:** while the TV sits idle, `FreezeManager` freezes the LED service a few minutes in (here about 4
@@ -84,4 +88,6 @@ only re-sent the pattern on wake left the LEDs dark after the TV had sat in the 
 for an hour; this version's restart on wake brought them back. After a 31-minute screensaver the add-on was
 thawed and restarted the LED service the moment the screensaver ended, and the LEDs came back on.
 After a wall-power cut (power on at 0 s, remote at 10 s, Home at 47 s) the add-on started at about 1:20 and the
-LEDs came on at 1:32, at the restart 10 s after it started. 3 JVM tests, lintRelease and the release build pass.
+LEDs came on at 1:32, at the restart 10 s after it started. On 2026-10-24 the LEDs were dark after a screensaver with the LED service running, and three restarts didn't
+relight them; switching to `listening` and back to `mute` did, which is why version 7 does that on every
+connect. 4 JVM tests, lintRelease and the release build pass.

@@ -27,6 +27,11 @@ final class Patterns {
         return NAMES[((i + step) % n + n) % n];
     }
 
+    /** A steady pattern other than name, set just before it so the LED service sees a change. */
+    static String nudge(String name) {
+        return "listening".equals(name) ? FALLBACK : "listening";
+    }
+
     private static int index(String name) {
         for (int i = 0; i < NAMES.length; i++) if (NAMES[i].equals(name)) return i;
         return -1;
