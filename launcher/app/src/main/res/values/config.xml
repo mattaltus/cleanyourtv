@@ -548,4 +548,9 @@
          from a private provider). The local address: this server trusts the local network, so no token is needed.
          Empty: Plezy cards show Plezy's banner. -->
     <string name="plex_server" translatable="false"></string>
+
+    <!-- Local (both TCLs): the keyboard Home puts back as the default (KeyboardDefault). Google's remote service makes
+         its phone bridge the default at every boot, and search boxes then take no input from the remote. Needs
+         WRITE_SECURE_SETTINGS (work/build-and-install.sh grants it). Empty: leave the keyboard alone. -->
+    <string name="default_keyboard" translatable="false">com.tcl.inputmethod.international/.T_IME</string>
 </resources>

@@ -139,6 +139,7 @@ public class HomeKeyService extends AccessibilityService {
     public void onDestroy() {
         if (running == this) running = null;
         RemoteKeys.release(this);
+        if (keyboardWatch != null) keyboardWatch.run();
         stopWaitingForUnlock();
         if (screenOnReceiver != null) unregisterReceiver(screenOnReceiver);
         if (standbyExit != null) {
@@ -189,6 +190,10 @@ public class HomeKeyService extends AccessibilityService {
         // in onServiceConnected: the note is in credential-protected storage too, readable only after the unlock.
         repairRecord = config.restoreKeyServices;
         if (repairRecord) ServiceRepair.connected(this, getClass());
+        // Local: default_keyboard back as the default, now and for a few minutes, since Google's remote service makes
+        // its phone bridge the default late in the boot (KeyboardDefault).
+        if (keyboardWatch != null) keyboardWatch.run();
+        keyboardWatch = KeyboardDefault.watch(this, handler);
         settingsKeycodes = config.settingsKeycodes;
         settingsPanel = config.settingsKeyPanel;
         consumeVolumeKeys = config.consumeVolumeKeys;
@@ -296,6 +301,7 @@ public class HomeKeyService extends AccessibilityService {
     @Override
     public boolean onUnbind(Intent intent) {
         RemoteKeys.release(this);
+        if (keyboardWatch != null) keyboardWatch.run();
         if (repairRecord && !steppingOut) ServiceRepair.disconnected(this, getClass());
         return super.onUnbind(intent);
     }
@@ -397,6 +403,8 @@ public class HomeKeyService extends AccessibilityService {
     /** Lets the system see the key, so a long press still does what the firmware gives it. */
     private static final long HOME_KEY_DELAY_MS = 250;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    /** Stops KeyboardDefault's watch of the default keyboard; null before the config is read. */
+    private Runnable keyboardWatch;
 
     /** stock_home_redirect on the Home key: when the stock home is already on screen (it came up at boot, before
      *  Android bound this service), Home brings it up again with no window change, so the redirect above never

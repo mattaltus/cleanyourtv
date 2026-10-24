@@ -1094,6 +1094,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
     protected void onResume() {
         super.onResume();
         resumed = true;
+        // Local: default_keyboard back as the default, if Google's remote service took it again (KeyboardDefault).
+        KeyboardDefault.apply(this);
         // A festival that started or ended while Home was in the background: rebuild with or without it.
         if (festive != festival.active(LocalDate.now())) {
             recreate();
