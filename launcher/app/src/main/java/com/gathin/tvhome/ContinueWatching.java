@@ -18,8 +18,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -147,6 +149,9 @@ final class ContinueWatching {
         private final Listener listener;
         private final boolean animations;
         private List<Item> items = new ArrayList<>();
+        /** Per package: the app's banner (the fallback poster) and its icon (the badge); main thread only. */
+        private final Map<String, Drawable> banners = new HashMap<>();
+        private final Map<String, Drawable> icons = new HashMap<>();
 
         Adapter(Context ctx, Posters posters, Listener listener, boolean animations) {
             this.ctx = ctx;
@@ -162,13 +167,30 @@ final class ContinueWatching {
 
         /** The app's TV banner (or icon) for a card whose images can't be read; null if the app is gone. */
         private Drawable banner(String pkg) {
+            if (banners.containsKey(pkg)) return banners.get(pkg);
+            Drawable d;
             try {
                 PackageManager pm = ctx.getPackageManager();
-                Drawable d = pm.getApplicationBanner(pkg);
-                return d != null ? d : pm.getApplicationIcon(pkg);
+                d = pm.getApplicationBanner(pkg);
+                if (d == null) d = pm.getApplicationIcon(pkg);
             } catch (PackageManager.NameNotFoundException e) {
-                return null;
+                d = null;
             }
+            banners.put(pkg, d);
+            return d;
+        }
+
+        /** The app's icon for the badge in the card's corner; null if the app is gone. */
+        private Drawable icon(String pkg) {
+            if (icons.containsKey(pkg)) return icons.get(pkg);
+            Drawable d;
+            try {
+                d = ctx.getPackageManager().getApplicationIcon(pkg);
+            } catch (PackageManager.NameNotFoundException e) {
+                d = null;
+            }
+            icons.put(pkg, d);
+            return d;
         }
 
         @Override public int getItemCount() {
@@ -182,6 +204,9 @@ final class ContinueWatching {
         @Override public void onBindViewHolder(@NonNull Holder h, int position) {
             Item item = items.get(position);
             h.title.setText(item.title);
+            Drawable icon = icon(item.pkg);
+            h.badge.setImageDrawable(icon);
+            h.badge.setVisibility(icon != null ? View.VISIBLE : View.GONE);
             h.card.setContentDescription(item.title);
             h.progress.setVisibility(item.progress > 0 ? View.VISIBLE : View.GONE);
             h.track.setVisibility(item.progress > 0 ? View.VISIBLE : View.GONE);
@@ -215,6 +240,7 @@ final class ContinueWatching {
         static final class Holder extends RecyclerView.ViewHolder {
             final View card;
             final ImageView poster;
+            final ImageView badge;
             final TextView title;
             final View track;
             final View progress;
@@ -223,6 +249,8 @@ final class ContinueWatching {
                 super(v);
                 card = v.findViewById(R.id.continueCard);
                 poster = v.findViewById(R.id.continuePoster);
+                badge = v.findViewById(R.id.continueBadge);
+                badge.setClipToOutline(true);
                 title = v.findViewById(R.id.continueTitle);
                 track = v.findViewById(R.id.continueTrack);
                 progress = v.findViewById(R.id.continueProgress);

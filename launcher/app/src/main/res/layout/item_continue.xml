@@ -22,6 +22,18 @@
             android:scaleType="centerCrop"
             android:importantForAccessibility="no" />
 
+        <!-- The app the card opens in. -->
+        <ImageView
+            android:id="@+id/continueBadge"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="top|left"
+            android:layout_margin="7dp"
+            android:padding="2dp"
+            android:background="@drawable/continue_badge"
+            android:scaleType="fitCenter"
+            android:importantForAccessibility="no" />
+
         <View
             android:layout_width="match_parent"
             android:layout_height="52dp"
