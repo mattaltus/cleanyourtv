@@ -45,7 +45,7 @@ public class ContinueWatchingTest {
     @Test public void plezyImagesComeFromTheServerFirst() {
         String[] images = ContinueWatching.images("com.edde746.plezy", "plezy://play?content_id=x_y_58068", "http://plex.local:32400", "content://t", null);
         assertEquals(3, images.length);
-        assertEquals("http://plex.local:32400/photo/:/transcode?width=352&height=198&minSize=1&upscale=1&url=%2Flibrary%2Fmetadata%2F58068%2Fthumb", images[0]);
+        assertEquals("http://plex.local:32400/photo/:/transcode?width=400&height=224&minSize=1&upscale=1&url=%2Flibrary%2Fmetadata%2F58068%2Fthumb", images[0]);
         assertEquals("content://t", images[1]);
         assertEquals(2, ContinueWatching.images("com.apple.atve.androidtv.appletv", "plezy://play?content_id=x_y_1", "http://s", "t", "p").length);
         assertEquals(2, ContinueWatching.images("com.edde746.plezy", "plezy://play?content_id=x_y_1", "", "t", "p").length);

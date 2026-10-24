@@ -101,7 +101,7 @@ final class ContinueWatching {
     static String[] images(String pkg, String intentUri, String plexServer, String thumb, String poster) {
         String key = PLEZY.equals(pkg) ? plexRatingKey(intentUri) : null;
         if (key == null || plexServer == null || plexServer.isEmpty()) return new String[]{thumb, poster};
-        String plex = plexServer + "/photo/:/transcode?width=352&height=198&minSize=1&upscale=1"
+        String plex = plexServer + "/photo/:/transcode?width=400&height=224&minSize=1&upscale=1"
                 + "&url=%2Flibrary%2Fmetadata%2F" + key + "%2Fthumb";
         return new String[]{plex, thumb, poster};
     }
