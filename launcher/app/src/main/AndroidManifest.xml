@@ -220,6 +220,18 @@
             android:exported="true"
             android:permission="android.permission.WRITE_SECURE_SETTINGS" />
 
+        <!-- Local (living room): gets HomeKeyService past TCL's boot manager without APP_AUTO_START; see
+             BootPassService. No android.media.tv.input metadata, so it is never listed as an input. -->
+        <service
+            android:name=".BootPassService"
+            android:exported="true"
+            android:permission="android.permission.BIND_TV_INPUT"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="android.media.tv.TvInputService" />
+            </intent-filter>
+        </service>
+
         <!-- The remote's Input button (KEYCODE_TV or KEYCODE_TV_INPUT) opens the input switcher, and input_key_keycodes and
          app_keys (config.xml or a theme) bring back other remote buttons; see InputKeyService. -->
         <!-- Bound again by the system after a force stop, which restarts Home on firmware that kills
