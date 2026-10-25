@@ -526,6 +526,15 @@
     <!-- The clock screensaver (Home idle clock and the system screensaver) over Home's wallpaper instead of black with
          a coloured glow. The clock still moves every minute. Can also be set with "clock_wallpaper" in a theme. -->
     <bool name="clock_wallpaper">false</bool>
+    <!-- Local (living room): the top bar's pills (Inputs, network, Settings) joined in one frosted bar, like Google TV's and
+         Haven's tab bar, instead of separate pills. Ignored with top_menu. A theme can set it ("top_bar_group"). -->
+    <bool name="top_bar_group">false</bool>
+    <!-- Local: the top bar's pills' height in dp, 30 to 42 (42, the stock size); text and icons keep their size. A theme
+         can set it ("top_bar_pill_height"). -->
+    <integer name="top_bar_pill_height">42</integer>
+    <!-- Local: the top bar's pills show only their icon, and the focused one its label too. A theme can set it
+         ("top_bar_labels_on_focus"). -->
+    <bool name="top_bar_labels_on_focus">false</bool>
     <!-- How dark that wallpaper is behind the clock, 0 to 90 %. Can also be set with "clock_wallpaper_dim". -->
     <integer name="clock_wallpaper_dim">50</integer>
     <!-- The clock screensaver's slow coloured glow behind the clock. false leaves the clock and date alone on plain black

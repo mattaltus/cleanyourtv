@@ -894,6 +894,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
             vpnPlainInk = btnVpn.getCompoundDrawableTintList();
             makeIconOnly(btnVpn);
         }
+        if (!cfg.topMenu) styleTopButtons(cfg);
         btnSettings.setOnLongClickListener(v -> {
             showSettingsMenu();
             return true;
@@ -2660,6 +2661,91 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
         buttons.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> align.run());
     }
 
+    /**
+     * Local (living room): the top bar's look from config.xml or the theme. top_bar_group joins the pills in one
+     * frosted bar, like Google TV's and Haven's tab bar: the bar carries the pills' glass (pill_bg's gradient and rim)
+     * and wraps them, and each pill is clear until focused (pill_bg_grouped). top_bar_pill_height makes the pills
+     * slimmer (text and icons keep their size), and top_bar_labels_on_focus shows a pill's label only while it has focus.
+     */
+    private void styleTopButtons(Config cfg) {
+        if (!cfg.topBarGroup && cfg.topBarPillHeight == 42 && !cfg.topBarLabelsOnFocus) return;
+        ViewGroup bar = findViewById(R.id.topButtons);
+        int height = Math.round(cfg.topBarPillHeight * density);
+        int pad = Math.round(2 * density);
+        if (cfg.topBarGroup) {
+            GradientDrawable track = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[]{0x2EFFFFFF, 0x14FFFFFF});
+            track.setCornerRadius(height / 2f + pad);
+            track.setStroke(Math.max(1, Math.round(density)), 0x38FFFFFF);
+            bar.setBackground(track);
+            bar.setPadding(pad, pad, pad, pad);
+            // Keep the bar's bottom edge where the separate pills' was.
+            RelativeLayout.LayoutParams blp = (RelativeLayout.LayoutParams) bar.getLayoutParams();
+            blp.bottomMargin = Math.max(0, blp.bottomMargin - pad);
+            bar.setLayoutParams(blp);
+        }
+        // The label's room: the pill style's 16/20dp, a little less inside the joined bar.
+        labelPadStart = Math.round((cfg.topBarGroup ? 13 : 16) * density);
+        labelPadEnd = Math.round((cfg.topBarGroup ? 16 : 20) * density);
+        labelsOnFocus = cfg.topBarLabelsOnFocus;
+        for (int i = 0; i < bar.getChildCount(); i++) {
+            View pill = bar.getChildAt(i);
+            ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) pill.getLayoutParams();
+            if (cfg.topBarGroup) {
+                pill.setBackgroundResource(R.drawable.pill_bg_grouped);
+                lp.setMarginStart(0);
+            }
+            if (lp.width > 0) {
+                // A round icon-only pill stays round, its 22dp icon centred.
+                lp.width = height;
+                int side = (height - Math.round(22 * density)) / 2;
+                pill.setPaddingRelative(side, 0, side, 0);
+            } else if (pill instanceof TextView) {
+                TextView text = (TextView) pill;
+                text.setPaddingRelative(labelPadStart, 0, labelPadEnd, 0);
+                if (labelsOnFocus) {
+                    rememberPillLabel(text);
+                    View.OnFocusChangeListener before = text.getOnFocusChangeListener();
+                    text.setOnFocusChangeListener((v, focused) -> {
+                        showPillLabel(text, focused);
+                        if (before != null) before.onFocusChange(v, focused);
+                    });
+                }
+            }
+            lp.height = height;
+            pill.setLayoutParams(lp);
+        }
+    }
+
+    /** Local, top_bar_labels_on_focus: each pill's label, shown only while it has focus, and its room then. */
+    private final Map<TextView, CharSequence> pillLabels = new HashMap<>();
+    private boolean labelsOnFocus;
+    private int labelPadStart, labelPadEnd;
+
+    /** Takes the label a pill shows now as its label (a network update may have just set it), then hides it unless focused. */
+    private void rememberPillLabel(TextView pill) {
+        CharSequence text = pill.getText();
+        if (text != null && text.length() > 0) {
+            pillLabels.put(pill, text);
+            pill.setContentDescription(text);
+        }
+        showPillLabel(pill, pill.isFocused());
+    }
+
+    /** A pill with its label (focused) or as a round icon (not). */
+    private void showPillLabel(TextView pill, boolean show) {
+        if (show) {
+            pill.setText(pillLabels.get(pill));
+            pill.setPaddingRelative(labelPadStart, 0, labelPadEnd, 0);
+            pill.setCompoundDrawablePadding(Math.round(9 * density));
+        } else {
+            pill.setText(null);
+            int side = Math.round(7 * density);
+            pill.setPaddingRelative(side, 0, side, 0);
+            pill.setCompoundDrawablePadding(0);
+        }
+    }
+
     /** The first top-bar button after Inputs that is shown, in bar order (top_bar_apps, the network pill, ...); Settings is always there. */
     private View firstTopButton() {
         ViewGroup bar = findViewById(R.id.topButtons);
@@ -3107,6 +3193,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
         if (wifiIconOnly) {
             btnWifi.setContentDescription(btnWifi.getText());
             btnWifi.setText(null);
+        } else if (labelsOnFocus) {
+            rememberPillLabel(btnWifi);
         }
         if (festive && lamp != null) {
             if (online && flame == 0) flame = 3;   // online some other way (cellular, USB tethering)

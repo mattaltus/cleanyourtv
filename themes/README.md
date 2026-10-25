@@ -99,6 +99,9 @@ A new key needs one there in the same pull request.
 | `icon_only_buttons` | bool | Wi-Fi and Settings as round icon buttons; Inputs keeps its label. The VPN badge is drawn in the Wi-Fi pill's label, so with `wifi_label_width` at 0 it goes with the label: add `vpn_pill` to keep the VPN state on screen (`false` by default) |
 | `icon_only_inputs` | bool | The Inputs pill as a round icon button too, its label kept as the TalkBack description (`false` by default). Works with or without `icon_only_buttons` |
 | `top_menu` | bool | Inputs, Wi-Fi and Settings folded into one round gear, centred on the header: OK drops a menu with the three plus Reorder apps, hold OK keeps the launcher menu (`false` by default) |
+| `top_bar_group` | bool | Local (living-room branch): the top bar's pills in one frosted bar, like Google TV's tab bar; each pill is clear until focused. Ignored with `top_menu` (`false` by default) |
+| `top_bar_pill_height` | 30 to 42 | Local: the top bar's pills' height in dp; text and icons keep their size (42 by default) |
+| `top_bar_labels_on_focus` | bool | Local: the top bar's pills show only their icon, and the focused one its label too (`false` by default) |
 | `launcher_settings_button` | bool | Make the header Settings action open Launcher settings directly with a matching 22dp home icon; also changes the Settings row when `top_menu` is on. Hold OK keeps module-card and ordering tools. The settings page includes Reorder apps and TV settings (`false` by default) |
 | `wifi_status_color` | bool | The Wi-Fi pill's icon green while the TV is online, white while it is not (`false` by default) |
 | `wifi_status_warnings` | bool | With `wifi_status_color`, the icon orange while connected without internet (a captive portal waiting for its login page) and red while offline, instead of white (`false` by default) |
