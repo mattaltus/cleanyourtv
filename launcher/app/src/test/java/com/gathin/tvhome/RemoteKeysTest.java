@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.junit.Test;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -136,12 +137,36 @@ public class RemoteKeysTest {
         assertEquals("mute", keys.get(190));
         assertEquals("screensaver", keys.get(195));
         assertEquals("sleep", parseHold("hold:190:sleep").get(190));
-        for (String word : new String[] {"back", "home", "recents", "mute", "sleep", "screensaver", "settings", "wifi", "library", "ignore"}) {
+        for (String word : new String[] {"back", "home", "recents", "mute", "sleep", "screensaver", "settings", "wifi", "library", "ignore", "panel", "tcl_guide", "red", "green", "yellow", "blue"}) {
             assertTrue(word, RemoteKeys.isAction(word));
         }
         assertFalse(RemoteKeys.isAction("com.netflix.ninja"));
         assertFalse(RemoteKeys.isAction("input:com.tcl.tvinput/.passthroughinput.TvPassThroughService/HW1"));
         assertFalse(RemoteKeys.isAction("Mute"));
+    }
+
+    @Test public void intentActionTargets() {
+        Map<Integer, String> keys = parse("KEYCODE_BUTTON_8:action:com.tcl.tv.action.EPG");
+        assertEquals("com.tcl.tv.action.EPG", RemoteKeys.intentAction(keys.get(195)));
+        assertFalse(RemoteKeys.isAction(keys.get(195)));
+        assertNull(RemoteKeys.intentAction("com.tcl.tv"));
+        assertNull(RemoteKeys.intentAction("action: "));
+        assertNull(RemoteKeys.inputId("action:com.tcl.tv.action.EPG"));
+    }
+
+    @Test public void freeviewStates() {
+        assertTrue(TclColourKey.isHbbtvState("3"));
+        for (String state : new String[] {"0", "1", "2", "4", "", "null"}) assertFalse(state, TclColourKey.isHbbtvState(state));
+    }
+
+    @Test public void whenTargets() {
+        Map<Integer, String> keys = parse("KEYCODE_BUTTON_8:when:com.tcl.tv:action:com.tcl.tv.action.EPG");
+        assertArrayEquals(new String[] {"com.tcl.tv", "action:com.tcl.tv.action.EPG"},
+                RemoteKeys.whenTarget(keys.get(195)));
+        assertNull(RemoteKeys.whenTarget("action:com.tcl.tv.action.EPG"));
+        assertNull(RemoteKeys.whenTarget("when:com.tcl.tv"));
+        assertNull(RemoteKeys.whenTarget("when::panel"));
+        assertNull(RemoteKeys.whenTarget("when:com.tcl.tv: "));
     }
 
     @Test public void globalActions() {

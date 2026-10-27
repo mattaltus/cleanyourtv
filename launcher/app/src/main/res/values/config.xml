@@ -224,6 +224,13 @@
     <string-array name="app_keys" translatable="false">
         <item>KEYCODE_TCL_NETFLIX:com.netflix.ninja</item>
         <item>KEYCODE_TCL_YOUTUBE:com.google.android.youtube.tv</item>
+        <!-- Local, both TCL remotes: Guide in Live TV presses green while Freeview Plus runs, which opens its guide
+             (TCL hands Guide itself to Freeview, which ignores it), and opens TCL's guide otherwise (TclColourKey);
+             elsewhere the button stays as TCL has it. Bedroom RC902V: the square (dashboard) button opens the
+             quick-settings panel, Favourites Live TV (inside Live TV it still gets its channel list). -->
+        <item>KEYCODE_TCL_EPG:when:com.tcl.tv:tcl_guide</item>
+        <item>KEYCODE_TCL_DASHBOARD:panel</item>
+        <item>KEYCODE_TCL_LIST:com.tcl.tv</item>
         <item>4099:com.amazon.amazonvideo.livingroom</item>
     </string-array>
 

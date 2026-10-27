@@ -13,6 +13,7 @@ import android.provider.Settings;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.KeyEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,6 +37,11 @@ import java.util.regex.Pattern;
  * of "inputs" opens the input switcher, for a remote whose source button sends a key Android does not map,
  * one of the action words (back, home, recents, mute, sleep, screensaver, settings, wifi, library) does that action, and
  * "package/.Activity" opens that activity rather than the app's launcher entry (an add-on's quick bar, say).
+ * Local: "panel" opens the quick-settings panel, "action:<intent action>" starts that intent, as
+ * "action:com.tcl.tv.action.EPG" opens TCL's guide, and a button whose app is already in front passes its key to that
+ * app. "when:<package>:<target>" acts only while that package is in front, and leaves the key alone elsewhere. red,
+ * green, yellow and blue press that colour key through TCL's on-screen remote, and tcl_guide opens Freeview's guide
+ * or TCL's (TclColourKey).
  */
 final class RemoteKeys {
 
@@ -179,6 +185,46 @@ final class RemoteKeys {
         return (slash < 0 ? target : target.substring(0, slash)).equals(front);
     }
 
+    /**
+     * Local: whether the app a target opens is already in front, so the key is left to it: Live TV shows its own
+     * channel list on TCL's list button. Not for an action target, which runs there too.
+     */
+    private static boolean leftToFront(Context ctx, String target) {
+        return intentAction(target) == null && inFront(target, foreground(ctx));
+    }
+
+    /** The target behind "when:<package>:<target>" while that package is in front; null elsewhere, so the key passes on. */
+    private static String onlyWhen(Context ctx, String target) {
+        String[] when = whenTarget(target);
+        return when != null && when[0].equals(foreground(ctx)) ? when[1] : null;
+    }
+
+    /** {package, target} of a "when:<package>:<target>" entry, e.g. "when:com.tcl.tv:tcl_guide"; null otherwise. */
+    static String[] whenTarget(String target) {
+        if (target == null || !target.startsWith("when:")) return null;
+        String[] parts = target.substring("when:".length()).split(":", 2);
+        return parts.length == 2 && !parts[0].trim().isEmpty() && !parts[1].trim().isEmpty()
+                ? new String[] {parts[0].trim(), parts[1].trim()} : null;
+    }
+
+    /** The package of the window in front, or null; needs canRetrieveWindowContent in the service's XML. */
+    @SuppressWarnings("deprecation")   // recycle() is a no-op from 33 but still needed on older TVs
+    private static String foreground(Context ctx) {
+        if (!(ctx instanceof AccessibilityService)) return null;
+        AccessibilityNodeInfo root = ((AccessibilityService) ctx).getRootInActiveWindow();
+        if (root == null) return null;
+        CharSequence pkg = root.getPackageName();
+        root.recycle();
+        return pkg == null ? null : pkg.toString();
+    }
+
+    /** The intent action of an "action:<action>" target, e.g. "action:com.tcl.tv.action.EPG"; null otherwise. */
+    static String intentAction(String target) {
+        if (target == null || !target.startsWith("action:")) return null;
+        String action = target.substring("action:".length()).trim();
+        return action.isEmpty() ? null : action;
+    }
+
     /** Created on first use: building a Handler while the class loads breaks the JVM tests. */
     private static Presses presses;
 
@@ -187,7 +233,9 @@ final class RemoteKeys {
      * normal one on an earlier release. False means neither list has this key, so the caller can pass it on.
      */
     static boolean handle(Context ctx, KeyEvent event, String app, String holdApp) {
+        if (app != null && app.startsWith("when:")) app = onlyWhen(ctx, app);
         if (app == null && holdApp == null) return false;
+        if (holdApp == null && leftToFront(ctx, app)) return false;
         if (presses == null) {
             Handler handler = new Handler(Looper.getMainLooper());
             presses = new Presses(new Presses.Timer() {
@@ -343,16 +391,22 @@ final class RemoteKeys {
     static boolean isAction(String target) {
         switch (target) {
             case "back": case "home": case "recents": case "mute": case "sleep":
-            case "screensaver": case "settings": case "wifi": case "library": case "ignore":
+            case "screensaver": case "settings": case "wifi": case "library": case "ignore": case "panel": case "tcl_guide":
                 return true;
             default:
-                return false;
+                return TclColourKey.isColour(target);
         }
     }
 
     /** Runs an action word; false for an app or an input. Needs no permission the launcher does not already have. */
     private static boolean runAction(Context ctx, String target) {
         if (!isAction(target)) return false;
+        if (TclColourKey.isColour(target) || target.equals("tcl_guide")) {
+            if (!(ctx instanceof AccessibilityService)) return true;
+            if (target.equals("tcl_guide")) TclColourKey.guide((AccessibilityService) ctx);
+            else TclColourKey.press((AccessibilityService) ctx, target);
+            return true;
+        }
         int global = globalAction(target, Build.VERSION.SDK_INT);
         if (global != 0) {
             if (ctx instanceof AccessibilityService) ((AccessibilityService) ctx).performGlobalAction(global);
@@ -382,6 +436,10 @@ final class RemoteKeys {
             case "library":
                 // Home with the App library open on top; Home does nothing when app_library is off.
                 start(ctx, new Intent(ctx, MainActivity.class).setAction(MainActivity.ACTION_APP_LIBRARY));
+                break;
+            case "panel":
+                // The launcher's quick-settings panel, as settings_key_panel opens it from the gear button.
+                start(ctx, new Intent(ctx, QuickSettingsActivity.class));
                 break;
             default:
                 break;   // "ignore", or "sleep" below Android 9: consumed, nothing to do
@@ -417,6 +475,11 @@ final class RemoteKeys {
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             } catch (ActivityNotFoundException ignored) {
             }
+            return;
+        }
+        String action = intentAction(pkg);
+        if (action != null) {
+            start(ctx, new Intent(action));
             return;
         }
         String guide = guidePackage(pkg);
