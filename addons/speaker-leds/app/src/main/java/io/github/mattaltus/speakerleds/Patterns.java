@@ -27,6 +27,14 @@ final class Patterns {
         return NAMES[((i + step) % n + n) % n];
     }
 
+    /**
+     * Whether the LEDs show the pattern, as Google's voice app had them on stock firmware: lit (its "mute") while
+     * TCL's far-field mic is off, dark while it is on. micOn is null when the TV doesn't say; then always lit.
+     */
+    static boolean lit(boolean followMic, Boolean micOn) {
+        return !followMic || !Boolean.TRUE.equals(micOn);
+    }
+
     /** A steady pattern other than name, set just before it so the LED service sees a change. */
     static String nudge(String name) {
         return "listening".equals(name) ? FALLBACK : "listening";

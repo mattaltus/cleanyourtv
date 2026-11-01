@@ -10,6 +10,8 @@
 
     <queries>
         <package android:name="com.google.android.tv.assistant" />
+        <!-- TCL's far-field mic state (follow_mic) -->
+        <provider android:authorities="atv.hotwordmic" />
     </queries>
 
     <application android:allowBackup="false" android:supportsRtl="true" android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"

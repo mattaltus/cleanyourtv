@@ -4,17 +4,22 @@ Optional Android TV add-on, maintained by [mattaltus](https://github.com/mattalt
 indicator LEDs on a TV's built-in speaker bar lit while the TV is on, after the cleanup has disabled
 whatever used to light them.
 
-On a TCL 43C725 (Onkyo speaker bar) the four LEDs come on when the standby LED goes off. They are driven
-by the Google assistant LED service, `com.google.android.tv.assistant` (`/system/priv-app/LedService`),
-and on stock firmware something keeps them in one of that service's patterns. Once the voice packages are
-disabled nothing does, and the bar stays dark. The LED service itself exports
+On a TCL 43C725 (Onkyo speaker bar) the four LEDs are driven by the Google assistant LED service,
+`com.google.android.tv.assistant` (`/system/priv-app/LedService`). On stock firmware Google's voice app
+(`com.google.android.katniss`) sets them: its `mute` pattern, a steady light, while TCL's far-field mic is off,
+dark while the mic is on, and the listening and thinking animations while you talk to it. Once katniss is
+disabled with the voice packages, nothing does, and the bar stays dark. The LED service itself exports
 `com.google.android.assistant.led.FixedStateLedService` without a permission, so this app binds to it and
 asks for a pattern.
 
 ## What it does
 
-- While the screen is on, it holds one pattern. Standby darkens the LEDs by itself, so it sends nothing then:
-  the service's own `off` pattern is an animation that flashes the LEDs first.
+- While the screen is on, it holds one pattern, and as on stock only while TCL's far-field mic is off
+  (`follow_mic`, on by default). It reads the mic from `content://atv.hotwordmic/togglestate`
+  (`com.tcl.system.server`, the source katniss used), and follows the switch as it changes. When the mic goes on it
+  sends `off` once. A TV without that provider holds the pattern all the time.
+- Standby darkens the LEDs by itself, so it sends nothing then: the service's own `off` pattern is an animation
+  that flashes the LEDs first.
 - It starts at boot and after an update. Each time the TV wakes, or a screensaver ends, it lets go of the LED
   service (which then shuts down) and binds a fresh one: sending the pattern the service already holds does
   not relight the LEDs. The LEDs may go dark for about two seconds while that happens.
@@ -32,8 +37,9 @@ asks for a pattern.
 
 The patterns are the LED service's own: `listening`, `thinking`, `responding`, `timeout`, `mute` and
 `error`. The default is `mute`, a steady light that matches the stock look on the 43C725; `listening` is
-steady there too. Some of the others animate. The names come from the Google Assistant, so the light no
-longer says anything about the microphones: with this add-on it is a power light.
+steady there too. Some of the others animate. The names come from the Google Assistant. With `follow_mic`
+the light says what it said on stock, that the far-field mic is off; with `follow_mic` false in
+`app/src/main/res/values/config.xml` it is a power light.
 
 ## Setup
 
@@ -90,4 +96,5 @@ thawed and restarted the LED service the moment the screensaver ended, and the L
 After a wall-power cut (power on at 0 s, remote at 10 s, Home at 47 s) the add-on started at about 1:20 and the
 LEDs came on at 1:32, at the restart 10 s after it started. On 2026-10-24 the LEDs were dark after a screensaver with the LED service running, and three restarts didn't
 relight them; switching to `listening` and back to `mute` did, which is why version 7 does that on every
-connect. 4 JVM tests, lintRelease and the release build pass.
+connect. Version 8 (`follow_mic`, 2026-11-01): with the mic on, the add-on sent `off` once after its update and
+lights 8-11 went to `00000000`. 5 JVM tests, lintRelease and the release build pass.

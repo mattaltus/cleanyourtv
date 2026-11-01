@@ -12,6 +12,9 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
+import android.database.ContentObserver;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -25,12 +28,16 @@ import android.util.Log;
  * Stays bound to the TV's assistant LED service and holds one of its patterns (by default "mute", which matches
  * what the four speaker LEDs show on stock firmware) while the screen is on. Standby darkens them by itself, and
  * after a wake the LED service is started afresh: setting the pattern it already holds does not relight them.
+ * With follow_mic, as on stock, the pattern shows only while TCL's far-field mic is off, and the LEDs go dark
+ * when it is switched on.
  */
 public class LedHoldService extends Service {
     static final String TAG = "SpeakerLeds";
     static final String LED_PACKAGE = "com.google.android.tv.assistant";
     static final String LED_ACTION = "com.google.android.assistant.led.FixedStateLedService";
     static final String DESCRIPTOR = "com.google.android.assistant.led.IFixedStateLedService";
+    // TCL's far-field mic state, read by Google's voice app on stock firmware: mic_status 1 = on, 0 = off.
+    static final Uri MIC = Uri.parse("content://atv.hotwordmic/togglestate");
 
     private static final String PREFS = "leds";
     private static final String KEY_ENABLED = "enabled";
@@ -67,6 +74,15 @@ public class LedHoldService extends Service {
     // elapsedRealtime minus uptimeMillis at the last wake: it grows only while the CPU sleeps in standby, so it
     // measures the standby even when a frozen app gets SCREEN_OFF late.
     private long sleptBefore;
+    // Whether the LEDs may be showing the pattern: "off" is an animation that flashes first, so it goes out once
+    // when the mic switches on (or once after the app starts, not knowing), not on every wake.
+    private boolean showing = true;
+    private final ContentObserver mic = new ContentObserver(handler) {
+        @Override public void onChange(boolean selfChange) {
+            Log.i(TAG, "far-field mic " + (Boolean.TRUE.equals(micOn()) ? "on" : "off"));
+            show();
+        }
+    };
 
     static boolean isEnabled(Context c) {
         return prefs(c).getBoolean(KEY_ENABLED, true);
@@ -154,6 +170,13 @@ public class LedHoldService extends Service {
         f.addAction(Intent.ACTION_DREAMING_STOPPED);
         registerReceiver(screen, f);
         sleptBefore = SystemClock.elapsedRealtime() - SystemClock.uptimeMillis();
+        if (getResources().getBoolean(R.bool.follow_mic)) {
+            try {
+                getContentResolver().registerContentObserver(MIC, true, mic);
+            } catch (SecurityException e) {
+                Log.i(TAG, "no far-field mic state on this TV");
+            }
+        }
         bind();
     }
 
@@ -178,6 +201,7 @@ public class LedHoldService extends Service {
         handler.removeCallbacksAndMessages(null);
         lateHandler.removeCallbacksAndMessages(null);
         unregisterReceiver(screen);
+        getContentResolver().unregisterContentObserver(mic);
         set(Patterns.GET_OFF);
         unbind();
         super.onDestroy();
@@ -246,23 +270,46 @@ public class LedHoldService extends Service {
     }
 
     private void nudge() {
-        if (getSystemService(PowerManager.class).isInteractive()) set(Patterns.getter(Patterns.nudge(pattern(this))));
+        if (getSystemService(PowerManager.class).isInteractive() && lit()) {
+            set(Patterns.getter(Patterns.nudge(pattern(this))));
+        }
     }
 
     private void show() {
-        if (getSystemService(PowerManager.class).isInteractive()) set(Patterns.getter(pattern(this)));
+        if (!getSystemService(PowerManager.class).isInteractive()) return;
+        if (lit()) {
+            if (set(Patterns.getter(pattern(this)))) showing = true;
+        } else if (showing) {
+            if (set(Patterns.GET_OFF)) showing = false;
+        }
     }
 
-    /** Reads the state's value with its getter, then passes it to setState. */
-    private void set(int getter) {
+    private boolean lit() {
+        return Patterns.lit(getResources().getBoolean(R.bool.follow_mic), micOn());
+    }
+
+    /** TCL's far-field mic: true on, false off, null when the TV doesn't say. */
+    private Boolean micOn() {
+        try (Cursor c = getContentResolver().query(MIC, null, null, null, null)) {
+            if (c == null || !c.moveToFirst()) return null;
+            return c.getInt(0) != 0;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** Reads the state's value with its getter, then passes it to setState; false when it couldn't. */
+    private boolean set(int getter) {
         IBinder b = led;
-        if (b == null) return;
+        if (b == null) return false;
         try {
             int value = call(b, getter, -1);
             call(b, Patterns.SET_STATE, value);
             Log.i(TAG, "setState " + value + " (getter " + getter + ")");
+            return true;
         } catch (Exception e) {
             Log.w(TAG, "LED call failed", e);
+            return false;
         }
     }
 

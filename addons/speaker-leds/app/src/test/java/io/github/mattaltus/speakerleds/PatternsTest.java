@@ -21,6 +21,13 @@ public class PatternsTest {
         assertEquals(5, Patterns.getter(null));
     }
 
+    @Test public void litWhileTheMicIsOff() {
+        assertTrue(Patterns.lit(true, false));
+        assertFalse(Patterns.lit(true, true));
+        assertTrue(Patterns.lit(true, null));
+        assertTrue(Patterns.lit(false, true));
+    }
+
     @Test public void stepWrapsBothWays() {
         assertEquals("error", Patterns.step("mute", 1));
         assertEquals("listening", Patterns.step("error", 1));
