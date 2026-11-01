@@ -154,11 +154,6 @@ public class RemoteKeysTest {
         assertNull(RemoteKeys.inputId("action:com.tcl.tv.action.EPG"));
     }
 
-    @Test public void freeviewStates() {
-        assertTrue(TclColourKey.isHbbtvState("3"));
-        for (String state : new String[] {"0", "1", "2", "4", "", "null"}) assertFalse(state, TclColourKey.isHbbtvState(state));
-    }
-
     @Test public void whenTargets() {
         Map<Integer, String> keys = parse("KEYCODE_BUTTON_8:when:com.tcl.tv:action:com.tcl.tv.action.EPG");
         assertArrayEquals(new String[] {"com.tcl.tv", "action:com.tcl.tv.action.EPG"},

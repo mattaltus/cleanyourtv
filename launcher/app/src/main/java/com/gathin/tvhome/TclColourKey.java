@@ -1,9 +1,9 @@
 package com.gathin.tvhome;
 
 import android.accessibilityservice.AccessibilityService;
-import android.annotation.SuppressLint;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -17,8 +17,7 @@ import java.util.List;
  * real key press when one of its keys is clicked, so the Home button helper opens the panel, clicks the key whose view
  * id ends in "_green" (hbbtv_dvb_green over Freeview, other layouts elsewhere) and closes it again. Freeview Plus opens
  * its guide on green, and ignores the Guide key TCL sends it. Needs flagRetrieveInteractiveWindows and
- * flagReportViewIds on the helper. The "tcl_guide" word does that only while Freeview is running, and opens TCL's own
- * guide otherwise, without the panel.
+ * flagReportViewIds on the helper. The "tcl_guide" word doesn't need the panel: see guide().
  */
 final class TclColourKey {
     private static final String KEYHELP = "com.tcl.keyhelp";
@@ -39,36 +38,19 @@ final class TclColourKey {
         }
     }
 
-    /** Freeview's guide (green) while Freeview Plus is running on the channel, TCL's Program Guide otherwise. */
-    static void guide(AccessibilityService service) {
-        if (freeviewRunning()) {
-            press(service, "green");
-            return;
-        }
-        try {
-            service.startActivity(new Intent("com.tcl.tv.action.EPG").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-        } catch (ActivityNotFoundException | SecurityException unavailable) {
-            // not a TCL with its guide
-        }
-    }
-
     /**
-     * Whether Freeview's app is up, from TCL's HbbTV state: 1 away from Live TV, 2 in Live TV before an app has
-     * loaded (no popup, green does nothing), 3 once it has (popup shown). KeyHelp takes 2, 3 or 4 as HbbTV.
+     * Freeview's guide while Freeview Plus is running on the channel, TCL's Program Guide otherwise, the way Google
+     * TV's home did it: its Guide handler opens the partner config's epg-app-deep-link, app://com.tcl.tv/epg. Live TV
+     * then hands Freeview a Guide key, which an Australian set turns into green (hbbtv_guildkey_convertto), and opens
+     * its own guide when nothing takes it. Tried on the living-room C725 in both cases.
      */
-    @SuppressLint("PrivateApi")   // android.os.SystemProperties; sys.tcl.* is log_prop, readable by any app
-    static boolean freeviewRunning() {
+    static void guide(AccessibilityService service) {
         try {
-            Object state = Class.forName("android.os.SystemProperties").getMethod("get", String.class, String.class)
-                    .invoke(null, "sys.tcl.hbbtv.state", "0");
-            return isHbbtvState(String.valueOf(state));
-        } catch (ReflectiveOperationException | RuntimeException unavailable) {
-            return false;
+            service.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("app://com.tcl.tv/epg"))
+                    .setClassName("com.tcl.tv", "com.tcl.tv.TVActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (ActivityNotFoundException | SecurityException unavailable) {
+            // not a TCL with Live TV
         }
-    }
-
-    static boolean isHbbtvState(String state) {
-        return "3".equals(state);
     }
 
     static void press(AccessibilityService service, String colour) {

@@ -41,7 +41,7 @@ import java.util.regex.Pattern;
  * "action:com.tcl.tv.action.EPG" opens TCL's guide, and a button whose app is already in front passes its key to that
  * app. "when:<package>:<target>" acts only while that package is in front, and leaves the key alone elsewhere. red,
  * green, yellow and blue press that colour key through TCL's on-screen remote, and tcl_guide opens Freeview's guide
- * or TCL's (TclColourKey).
+ * or TCL's through Live TV's epg link (TclColourKey.guide).
  */
 final class RemoteKeys {
 
