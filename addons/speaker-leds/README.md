@@ -22,11 +22,8 @@ asks for a pattern.
   that flashes the LEDs first.
 - It starts at boot and after an update. Each time the TV wakes, or a screensaver ends, it lets go of the LED
   service (which then shuts down) and binds a fresh one: sending the pattern the service already holds does
-  not relight the LEDs. The LEDs may go dark for about two seconds while that happens.
-- After each connect it sets a different steady pattern first (`listening`, or `mute` when `listening` is the
-  choice), then the chosen one 2 s later. After a screensaver the LEDs were dark while the LED service still
-  ran its animation, and restarts alone left them dark; a real change of pattern relit them. So each wake
-  shows the other pattern for about two seconds.
+  not relight the LEDs. The LEDs may go dark for about two seconds while that happens. Since version 9 it does
+  this only while the mic is on: the 43C725's bar lights itself orange at each wake, which is the `mute` look.
 - After a power cut the pattern set on the first connect is accepted but the LEDs stay dark. So after a boot
   it restarts the LED service twice more, 10 s and 60 s after it starts; the second one blinks the LEDs off for
   a moment if they were already on. The add-on itself can't start sooner: TCL holds third-party apps' boot
@@ -97,4 +94,7 @@ After a wall-power cut (power on at 0 s, remote at 10 s, Home at 47 s) the add-o
 LEDs came on at 1:32, at the restart 10 s after it started. On 2026-10-24 the LEDs were dark after a screensaver with the LED service running, and three restarts didn't
 relight them; switching to `listening` and back to `mute` did, which is why version 7 does that on every
 connect. Version 8 (`follow_mic`, 2026-11-01): with the mic on, the add-on sent `off` once after its update and
-lights 8-11 went to `00000000`. 5 JVM tests, lintRelease and the release build pass.
+lights 8-11 went to `00000000`. Version 9 (2026-11-02) drops the different pattern versions 7 and 8 set first on
+every connect, which flashed the LEDs white at each wake: the dark spells it was for were most likely the TV's mic
+switch being on (the LEDs go dark with the mic on, as on stock). It also skips the restart on a wake or the end of
+a screensaver while the mic is off, since the bar lights itself orange then and the restart only blinked it off. 4 JVM tests, lintRelease and the release build pass.

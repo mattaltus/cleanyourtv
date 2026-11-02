@@ -44,11 +44,9 @@ public class LedHoldService extends Service {
     private static final String KEY_PATTERN = "pattern";
     private static final String CHANNEL = "leds";
     // The LED service connects to its own worker asynchronously and drops calls until then, so after a connect
-    // the calls wait. Its worker outlives a rebind and skips a state it thinks it already sent, so when the LEDs
-    // have gone dark (seen after a screensaver) the pattern alone doesn't relight them: a different pattern goes
-    // first, at NUDGE_MS, then the pattern at SHOW_MS. Only a few calls, seconds apart: the service's animation
-    // loop crashes when its pattern is switched in quick succession.
-    private static final long NUDGE_MS = 1500;
+    // the calls wait, at SHOW_MS. Only a few calls, seconds apart: the service's animation loop crashes when its
+    // pattern is switched in quick succession. Versions 7 and 8 set a different pattern first, to relight LEDs that
+    // had gone dark, which showed white at every wake; those dark spells were most likely the mic switch being on.
     private static final long[] SHOW_MS = {3500, 6000};
     // Between letting go of the LED service (it shuts down with its last client) and binding it again.
     private static final long REBIND_MS = 700;
@@ -147,7 +145,7 @@ public class LedHoldService extends Service {
             if (Intent.ACTION_SCREEN_ON.equals(a)) {
                 wake("screen on");
             } else if (Intent.ACTION_DREAMING_STOPPED.equals(a)) {
-                restartLed();
+                if (!lit()) restartLed();
             } else {
                 screenOffAt = SystemClock.elapsedRealtime();
                 handler.removeCallbacksAndMessages(null);
@@ -242,6 +240,9 @@ public class LedHoldService extends Service {
         sleptBefore = sleptNow;
         Log.i(TAG, "wake (" + why + "), screen off " + (off < 0 ? "unknown" : off / 1000 + " s")
                 + ", asleep " + slept / 1000 + " s");
+        // The bar lights itself orange at every wake. With the pattern lit that's already the look, and a restart
+        // only adds a dark gap while the LED service is down, so it's left alone.
+        if (lit()) return;
         restartLed();
         if (off < 0 || off >= LONG_STANDBY_MS || slept >= LONG_STANDBY_MS) restartLater();
     }
@@ -265,14 +266,7 @@ public class LedHoldService extends Service {
 
     private void showSoon() {
         handler.removeCallbacksAndMessages(null);
-        handler.postDelayed(this::nudge, NUDGE_MS);
         for (long ms : SHOW_MS) handler.postDelayed(this::show, ms);
-    }
-
-    private void nudge() {
-        if (getSystemService(PowerManager.class).isInteractive() && lit()) {
-            set(Patterns.getter(Patterns.nudge(pattern(this))));
-        }
     }
 
     private void show() {
