@@ -123,6 +123,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
      */
     private static final long TIME_VALID_AFTER_MS = 1_735_689_600_000L;
     private String liveTvPkg;
+    private boolean homeIgnoreChannelKeys;
     /** Launcher settings' change count this Home was built with (see onResume). */
     private long settingsRevision;
     /** Idle time on Home before ClockActivity; 0 is off (config.xml, home_idle_clock_minutes). */
@@ -439,8 +440,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
         @Override
         public void onReceive(Context context, Intent intent) {
             updateClockVisibility();
+            clockRefresh.start();   // the wall clock was set: line the redraw up with the new minute
         }
     };
+    /** Keeps the Home clocks moving on Android before 12 when the firmware stops ACTION_TIME_TICK (see ClockRefresh). */
+    private ClockRefresh clockRefresh;
     private final Runnable minuteTick = new Runnable() {
         @Override
         public void run() {
@@ -490,6 +494,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
         festival = cfg.festival;
         festive = festival.active(LocalDate.now());
         liveTvPkg = cfg.liveTvPackage;
+        homeIgnoreChannelKeys = cfg.homeIgnoreChannelKeys;
         idleClockMs = cfg.homeIdleClockMinutes * MINUTE_MS;
         backOpensClock = cfg.backOpensClock;
         bootToLiveTv = cfg.bootToLiveTv;
@@ -548,6 +553,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
         setUpContinueWatching();
         greeting = findViewById(R.id.greeting);
         clockBlock = findViewById(R.id.leftBlock);
+        clockRefresh = new ClockRefresh(clockBlock);
         greetingColor = greeting.getCurrentTextColor();
         if (!cfg.showGreeting) greeting.setVisibility(View.GONE);
         // Keep the other header layouts as designed: their extra lines change the block's centre.
@@ -1088,6 +1094,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
             registerReceiver(timeReceiver, timeFilter);
         }
         updateClockVisibility();
+        clockRefresh.start();   // with timeReceiver: while Home is visible, paused or not
         tileRefresh.onStart();
     }
 
@@ -1344,6 +1351,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
         super.onStop();
         started = false;
         unregisterReceiver(timeReceiver);
+        clockRefresh.stop();
         handler.removeCallbacks(clockCheck);
         stopped = true;
         tileRefresh.onStop();
@@ -1434,6 +1442,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
      */
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (homeIgnoreChannelKeys && RemoteKeys.isChannelKey(event.getKeyCode())) return true;
         // Vendor keys (TCL Netflix button, 4062) never reach the key services, only the focused window, so their
         // "hold:" entries run here too or nowhere. Only while resumed: onPause releases Home's holds, and a DOWN
         // taken after that would arm one nothing releases.
@@ -2749,8 +2758,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
     /** The first top-bar button after Inputs that is shown, in bar order (top_bar_apps, the network pill, ...); Settings is always there. */
     private View firstTopButton() {
         ViewGroup bar = findViewById(R.id.topButtons);
-        for (int i = 0; i < bar.getChildCount(); i++) {
-            View button = bar.getChildAt(i);
+        // The Hebrew layout (layout-iw) lists the bar mirrored, Settings first and Inputs last, so bar order
+        // runs from the end there. Walking it forwards returned Settings, and the pill key guard then treated
+        // Settings as both ends of the bar: Right from Settings was swallowed and never reached Wi-Fi.
+        boolean rtl = getResources().getBoolean(R.bool.rtl_menu_bar);
+        int n = bar.getChildCount();
+        for (int k = 0; k < n; k++) {
+            View button = bar.getChildAt(rtl ? n - 1 - k : k);
             if (button != btnInputs && button.getVisibility() == View.VISIBLE) return button;
         }
         return findViewById(R.id.btnSettings);
