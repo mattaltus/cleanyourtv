@@ -225,6 +225,14 @@ final class RemoteKeys {
         return action.isEmpty() ? null : action;
     }
 
+    /** The app in front, from HomeKeyService's window changes while app_keys has "front:" entries; "" otherwise. */
+    static String frontPackage = "";
+
+    /** A tap's target for both helpers: its "front:" entry while the button's own app is in front, else the usual one. */
+    static String tap(String target, String alt) {
+        return alt != null && inFront(target, frontPackage) ? alt : target;
+    }
+
     /** Created on first use: building a Handler while the class loads breaks the JVM tests. */
     private static Presses presses;
 
@@ -414,7 +422,11 @@ final class RemoteKeys {
         }
         int global = globalAction(target, Build.VERSION.SDK_INT);
         if (global != 0) {
-            if (ctx instanceof AccessibilityService) ((AccessibilityService) ctx).performGlobalAction(global);
+            // Home's own fallback path (vendor keys only the focused window gets) has no global actions: a bound helper
+            // performs them, so back, home, recents and sleep mapped to such a key are not swallowed.
+            AccessibilityService service = ctx instanceof AccessibilityService ? (AccessibilityService) ctx
+                    : HomeKeyService.running != null ? HomeKeyService.running : InputKeyService.running;
+            if (service != null) service.performGlobalAction(global);
             return true;
         }
         switch (target) {
@@ -514,7 +526,7 @@ final class RemoteKeys {
             }
             try {
                 ctx.startActivity(view);
-            } catch (ActivityNotFoundException ignored) {
+            } catch (ActivityNotFoundException | SecurityException ignored) {
             }
             return;
         }
@@ -531,7 +543,7 @@ final class RemoteKeys {
         if (open == null) return;
         try {
             ctx.startActivity(open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-        } catch (ActivityNotFoundException ignored) {
+        } catch (ActivityNotFoundException | SecurityException ignored) {
         }
     }
 }
