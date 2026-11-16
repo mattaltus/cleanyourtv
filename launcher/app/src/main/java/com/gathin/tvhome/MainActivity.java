@@ -2724,7 +2724,20 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, C
                 pill.setBackgroundResource(R.drawable.pill_bg_grouped);
                 lp.setMarginStart(0);
             }
-            if (lp.width > 0) {
+            if (labelsOnFocus && pill instanceof TextView && topAppButtons.contains(pill)) {
+                // A top_bar_apps button: round at rest like the others, and its app's name while focused. It is
+                // made with no text, so its label is the app label it was given as a content description.
+                TextView text = (TextView) pill;
+                lp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+                CharSequence name = text.getContentDescription();
+                if (name != null && name.length() > 0) pillLabels.put(text, name);
+                showPillLabel(text, text.isFocused());
+                View.OnFocusChangeListener before = text.getOnFocusChangeListener();
+                text.setOnFocusChangeListener((v, focused) -> {
+                    showPillLabel(text, focused);
+                    if (before != null) before.onFocusChange(v, focused);
+                });
+            } else if (lp.width > 0) {
                 // A round icon-only pill stays round, its 22dp icon centred.
                 lp.width = height;
                 int side = (height - Math.round(22 * density)) / 2;
