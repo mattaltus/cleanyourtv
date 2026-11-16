@@ -15,6 +15,12 @@ android {
         targetSdk 34
         versionCode 14
         versionName '3.5'
+        // Local: the Plex server for Continue watching's Plezy thumbnails, from launcher/local.properties
+        // (gitignored), e.g. plex.server=http://<plex ip>:32400; empty when unset.
+        def localProps = new Properties()
+        def localFile = rootProject.file('local.properties')
+        if (localFile.exists()) localFile.withInputStream { localProps.load(it) }
+        resValue 'string', 'plex_server', localProps.getProperty('plex.server', '')
     }
 
     buildTypes {
