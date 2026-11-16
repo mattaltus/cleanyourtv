@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app icon: a house, white at rest and dark when focused. The launcher's top_bar_apps button draws an app's own
+     icon untinted on a pill that turns white when focused; a compound drawable follows its button's focus, so this
+     switches with it, as the launcher's own Inputs, network and Settings icons do. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:drawable="@drawable/ic_home_dark" />
+    <item android:drawable="@drawable/ic_home_light" />
+</selector>
